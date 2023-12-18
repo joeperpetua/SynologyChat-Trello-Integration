@@ -1,3 +1,5 @@
+import os
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from pydantic import BaseModel, HttpUrl
 from typing import Optional, Dict, Any, Union
@@ -5,34 +7,44 @@ import logging
 import json
 import sys
 
+load_dotenv()
+CHAT_URL=f"https://{os.getenv('SYNO_CHAT_ADDRESS')}/webapi/entry.cgi?api=SYNO.Chat.External&method=incoming&version=2&token='{os.getenv('SYNO_CHAT_TOKEN')}'"
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[logging.FileHandler("server.log"), logging.StreamHandler(sys.stdout)],
 )
 
+logging.info(f"{CHAT_URL}")
 
-def handle_create():
+def handle_create(data, display):
     logging.info(f"[POST] [handle_create] --- processing")
+    task_name = data['card']['name']
+    task_list = data['list']['name']
+    author = display['entities']['memberCreator']['text']
+
+    webhook_text = f"Update in project board.\n Action: Task Creation.\nTask list: {task_list}\nTask name: {task_name}\nAuthor: {author}"
+    logging.info(f"[POST] [handle_create] --- {webhook_text}")
     return
 
 
-def handle_change():
+def handle_change(data):
     logging.info(f"[POST] [handle_change] --- processing")
     return
 
 
-def handle_rename():
+def handle_rename(data):
     logging.info(f"[POST] [handle_rename] --- processing")
     return
 
 
-def handle_move():
+def handle_move(data):
     logging.info(f"[POST] [handle_move] --- processing")
     return
 
 
-def handle_comment():
+def handle_comment(data):
     logging.info(f"[POST] [handle_comment] --- processing")
     return
 
@@ -51,21 +63,25 @@ async def read_receiverTrello(request: Request):
     logging.info(f"[POST] [receiverTrello] --- Received request ==> {request_json}")
 
     action = request_json.get("action", {})
+    display = action['display']
+    data = action['data']
     logging.info(
-        f"[POST] [receiverTrello] --- action ==> {action['display']['translationKey']}"
+        f"[POST] [receiverTrello] --- action ==> {display['translationKey']}"
     )
 
+    
+    
     match action["display"]["translationKey"]:
         case "action_create_card":
-            handle_create()
+            handle_create(data, display)
         case "action_changed_description_of_card":
-            handle_change()
+            handle_change(data, display)
         case "action_renamed_card":
-            handle_rename()
-        case "action_moved_card_from_list_to_list":
-            handle_move()
+            handle_rename(data, display)
+        case "action_move_card_from_list_to_list":
+            handle_move(data, display)
         case "action_comment_on_card":
-            handle_comment()
+            handle_comment(data, display)
 
     return {"status": 200}
 
