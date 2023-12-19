@@ -3,12 +3,13 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from pydantic import BaseModel, HttpUrl
 from typing import Optional, Dict, Any, Union
+import requests
 import logging
 import json
 import sys
 
 load_dotenv()
-CHAT_URL=f"https://{os.getenv('SYNO_CHAT_ADDRESS')}/webapi/entry.cgi?api=SYNO.Chat.External&method=incoming&version=2&token='{os.getenv('SYNO_CHAT_TOKEN')}'"
+CHAT_URL=os.getenv('SYNO_CHAT_ADDRESS')
 
 logging.basicConfig(
     level=logging.INFO,
@@ -16,7 +17,14 @@ logging.basicConfig(
     handlers=[logging.FileHandler("server.log"), logging.StreamHandler(sys.stdout)],
 )
 
-logging.info(f"{CHAT_URL}")
+# logging.info(f"{CHAT_URL}")
+
+def send_to_chat(text):
+    url = "https://chat.synology.com/webapi/entry.cgi?api=SYNO.Chat.External&method=incoming&version=2&token=\"" + os.getenv('SYNO_CHAT_TOKEN') + "\"&payload={\"text\":\"" + text + "\"}"
+
+    response = requests.request("GET", url)
+    logging.info(f"[POST] [handle_send] --- {url} / {response.text}")
+
 
 def handle_create(data, display):
     logging.info(f"[POST] [handle_create] --- processing")
@@ -24,27 +32,29 @@ def handle_create(data, display):
     task_list = data['list']['name']
     author = display['entities']['memberCreator']['text']
 
-    webhook_text = f"Update in project board.\n Action: Task Creation.\nTask list: {task_list}\nTask name: {task_name}\nAuthor: {author}"
-    logging.info(f"[POST] [handle_create] --- {webhook_text}")
+    webhook_text = f"_Update in project board._\\n* *Action:* Task Creation.\\n* *Task list:* {task_list}\\n* *Task name:* {task_name}\\n* *Author:* {author}"
+
+    send_to_chat(webhook_text)
+
     return
 
 
-def handle_change(data):
+def handle_change(data, display):
     logging.info(f"[POST] [handle_change] --- processing")
     return
 
 
-def handle_rename(data):
+def handle_rename(data, display):
     logging.info(f"[POST] [handle_rename] --- processing")
     return
 
 
-def handle_move(data):
+def handle_move(data, display):
     logging.info(f"[POST] [handle_move] --- processing")
     return
 
 
-def handle_comment(data):
+def handle_comment(data, display):
     logging.info(f"[POST] [handle_comment] --- processing")
     return
 
@@ -68,8 +78,6 @@ async def read_receiverTrello(request: Request):
     logging.info(
         f"[POST] [receiverTrello] --- action ==> {display['translationKey']}"
     )
-
-    
     
     match action["display"]["translationKey"]:
         case "action_create_card":
@@ -84,67 +92,3 @@ async def read_receiverTrello(request: Request):
             handle_comment(data, display)
 
     return {"status": 200}
-
-
-    card_name = action["data"]["card"]["name"]
-
-    if "list" in action["data"]:  # card was created / modified
-        list_name = action["data"]["list"]
-        if "desc" in action["data"]["card"]:
-            card_desc = action["data"]["card"]["desc"]
-            if card_desc == "":
-                logging.info(f"Received card without description. Ignore it.")
-                return {"status": 200}
-            else:
-                logging.info(
-                    f"Task modified. Task list: {list_name} / Task name: {card_name} / Task description: {card_desc}"
-                )
-        else:
-            logging.info(
-                f"Task created. Task list: {list_name} / Task name: {card_name}"
-            )
-
-    if "listBefore" in action["data"]:  # card was moved
-        previous_list = action["data"]["listBefore"]["name"]
-        current_list = action["data"]["listAfter"]["name"]
-
-        logging.info(
-            f"Task moved from {previous_list} to {current_list}. Task name: {card_name}"
-        )
-
-    return {"status": 200}
-
-
-""" 
-Board callback
-"""
-# @app.post("/receiverTrello")
-# async def read_receiverTrello(request: Request):
-#     request_json = await request.json()
-#     logging.info(f"[POST] [receiverTrello] --- Received request ==> {request_json}")
-
-#     actions = request_json.get('action', {})
-#     logging.info(f"[POST] [receiverTrello] --- action ==> {actions['display']['translationKey']}")
-
-#     card_name = actions['data']['card']['name']
-
-
-#     if 'list' in actions['data']: # card was created / modified
-#         list_name = actions['data']['list']
-#         if 'desc' in actions['data']['card']:
-#             card_desc = actions['data']['card']['desc']
-#             if card_desc == '':
-#                 logging.info(f"Received card without description. Ignore it.")
-#                 return {"status": 200}
-#             else:
-#                 logging.info(f"Task modified. Task list: {list_name} / Task name: {card_name} / Task description: {card_desc}")
-#         else:
-#                 logging.info(f"Task created. Task list: {list_name} / Task name: {card_name}")
-
-#     if 'listBefore' in actions['data']: # card was moved
-#         previous_list = actions['data']['listBefore']['name']
-#         current_list = actions['data']['listAfter']['name']
-
-#         logging.info(f"Task moved from {previous_list} to {current_list}. Task name: {card_name}")
-
-#     return {"status": 200}
