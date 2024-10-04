@@ -21,7 +21,7 @@ logging.basicConfig(
 # logging.info(f"{CHAT_URL}")
 
 def send_to_chat(text):
-    url = "https://chat.synology.com/webapi/entry.cgi?api=SYNO.Chat.External&method=incoming&version=2&token=\"" + os.getenv('SYNO_CHAT_TOKEN') + "\"&payload={\"text\":\"" + text + "\"}"
+    url = CHAT_URL + os.getenv('SYNO_CHAT_TOKEN') + "\"&payload={\"text\":\"" + text + "\"}"
 
     response = requests.request("GET", url)
     logging.info(f"[POST] [handle_send] --- {url} / {response.text}")
